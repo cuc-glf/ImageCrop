@@ -1,0 +1,207 @@
+package com.example.gaolf.imagecrop;
+
+import android.app.Activity;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.BitmapRegionDecoder;
+import android.graphics.Rect;
+import android.graphics.RectF;
+import android.os.AsyncTask;
+import android.os.Build;
+import android.os.Bundle;
+import android.util.DisplayMetrics;
+import android.view.View;
+import android.widget.Toast;
+
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+
+/**
+ * Created by gaolf on 15/12/21.
+ */
+public class ImageCropActivity extends Activity {
+
+    private static final String REQUEST_IMAGE_PATH = "REQUEST_IMAGE_PATH";
+    private static final String REQUEST_TARGET_PATH = "REQUEST_TARGET_PATH";
+    private static final String REQUEST_CROP_RECT = "REQUEST_CROP_RECT";
+
+    public static Intent createIntent(Activity from, String imageFilePath, String targetPath, String cropRect) {
+        Intent intent = new Intent(from, ImageCropActivity.class);
+        intent.putExtra(REQUEST_IMAGE_PATH, imageFilePath);
+        intent.putExtra(REQUEST_TARGET_PATH, targetPath);
+        intent.putExtra(REQUEST_CROP_RECT, cropRect);
+        return intent;
+    }
+
+    public static Intent createIntent(Activity from, String imageFilePath, String targetPath) {
+        Intent intent = new Intent(from, ImageCropActivity.class);
+        intent.putExtra(REQUEST_IMAGE_PATH, imageFilePath);
+        intent.putExtra(REQUEST_TARGET_PATH, targetPath);
+        intent.putExtra(REQUEST_CROP_RECT, "200, 200, 1000, 1000");
+        return intent;
+    }
+
+    private String inPath, outPath;
+    private Rect cropRect;
+
+    private CropImageView cropImageView;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        if (getIntent() != null) {
+            inPath = getIntent().getStringExtra(REQUEST_IMAGE_PATH);
+            outPath = getIntent().getStringExtra(REQUEST_TARGET_PATH);
+            String cropRectStr = getIntent().getStringExtra(REQUEST_CROP_RECT);
+            if (cropRectStr.matches("\\s*\\d+\\s*,\\s*\\d+\\s*,\\s*\\d+\\s*,\\s*\\d+\\s*")) {
+                String[] cropRectStrArray = cropRectStr.split(",");
+                int[] rectData = new int[4];
+                for (int i = 0; i < rectData.length; i++) {
+                    rectData[i] = Integer.parseInt(cropRectStrArray[i].trim());
+                }
+                cropRect = new Rect(rectData[0], rectData[1], rectData[2], rectData[3]);
+            } else {
+                throw new RuntimeException(
+                        "imageCropActivity only accepts cropRect with format [left, top, right, bottom]");
+            }
+        }
+
+        setContentView(R.layout.activity_image_crop);
+        cropImageView = (CropImageView) findViewById(R.id.crop_image);
+
+        // 根据手机屏幕大小找出合适的inSampleSize
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(inPath, options);
+        DisplayMetrics dm = new DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getMetrics(dm);
+        int screenWidth = dm.widthPixels;
+        int screenHeight = dm.heightPixels;
+        int imgWidth = options.outWidth;
+        int imgHeight = options.outHeight;
+        int inSampleSizeWidth = 1, inSampleSizeHeight = 1;
+        while (screenWidth * inSampleSizeWidth * 2 < imgWidth) {
+            inSampleSizeWidth *= 2;
+        }
+        while (screenHeight * inSampleSizeHeight * 2 < imgHeight) {
+            inSampleSizeHeight *= 2;
+        }
+        int inSampleSize = Math.max(inSampleSizeWidth, inSampleSizeHeight);
+        options.inJustDecodeBounds = false;
+        options.inSampleSize = inSampleSize;
+        Bitmap bitmap = BitmapFactory.decodeFile(inPath, options);
+        cropImageView.setImageBitmap(bitmap);
+        cropImageView.setEdge(cropRect);
+        cropImageView.startCrop();
+
+        findViewById(R.id.crop_image_ok).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Toast.makeText(ImageCropActivity.this, "crop!", Toast.LENGTH_SHORT).show();
+                RectF imgRect = cropImageView.getCurrentRect();
+                CropTask task = new CropTask(
+                        ImageCropActivity.this, inPath, outPath, cropRect, imgRect,
+                        (int) cropImageView.getRawWidth(), (int) cropImageView.getRawHeight());
+                task.execute();
+            }
+        });
+    }
+
+    private static class CropTask extends AsyncTask<Void, Void, Integer> {
+        private String inPath;
+        private String outPath;
+        private Rect cropRect;
+        private RectF imgRect;
+        private int rawImgWidth;
+        private int rawImgHeight;
+        private Activity context;
+
+        public CropTask(Activity context, String inPath, String outPath, Rect cropRect, RectF imgRect, int rawImgWidth, int rawImgHeight) {
+            this.inPath = inPath;               // 要裁剪的原图路径
+            this.outPath = outPath;             // 要输出的裁剪路径
+            this.cropRect = cropRect;           // CropImageView指定的裁剪区域
+            this.imgRect = imgRect;             // CropImageView中图片被移动、缩放后的区域
+            this.rawImgWidth = rawImgWidth;     // CropImageView中图片原大小
+            this.rawImgHeight = rawImgHeight;   // CropImageView中图片原大小
+            this.context = context;
+        }
+
+        @Override
+        protected Integer doInBackground(Void... params) {
+
+            // 计算这个rect在原图中的区域
+            Rect mappedCropRect = new Rect(
+                    (int) ((cropRect.left - imgRect.left) * rawImgWidth / imgRect.width()),
+                    (int) ((cropRect.top - imgRect.top) * rawImgHeight / imgRect.height()),
+                    (int) ((cropRect.right - imgRect.left) * rawImgWidth / imgRect.width()),
+                    (int) ((cropRect.bottom - imgRect.top) * rawImgHeight / imgRect.height())
+            );
+
+            // 1, 检查这个rect内的像素数
+            int rawCropArea = mappedCropRect.width() * mappedCropRect.height();     // 原图中裁剪区域点数
+            int cropArea = cropRect.width() * cropRect.height();                    // 实际需要的点数
+            int inSampleSize = 1;
+            while (cropArea * inSampleSize * 2 < rawCropArea) {
+                inSampleSize *= 2;
+            }
+
+            Bitmap bmp;
+            try {
+                if (Build.VERSION.SDK_INT > 9) {
+                    BitmapRegionDecoder decoder = BitmapRegionDecoder.newInstance(inPath, true);
+                    BitmapFactory.Options options = new BitmapFactory.Options();
+                    options.inSampleSize = inSampleSize;
+                    bmp = decoder.decodeRegion(mappedCropRect, options);
+                } else {
+                    // sdk < 10的系统不支持BitmapRegionDecoder方法
+                    // 把原图从系统中读取进来，进行内存裁剪
+                    BitmapFactory.Options options = new BitmapFactory.Options();
+                    options.inSampleSize = inSampleSize;
+                    Bitmap originBitmap = BitmapFactory.decodeFile(inPath, options);
+                    bmp = Bitmap.createBitmap(originBitmap,
+                            mappedCropRect.left, mappedCropRect.top,
+                            mappedCropRect.width(), mappedCropRect.height());
+                    if (originBitmap != bmp) {
+                        originBitmap.recycle();
+                    }
+                }
+            } catch (Exception e){
+                e.printStackTrace();
+                return 1;
+            }
+            Bitmap roundBmp = ImageUtil.toRoundBitmap(bmp);
+            bmp.recycle();
+            FileOutputStream fos = null;
+            try {
+                fos = new FileOutputStream(outPath);
+                roundBmp.compress(Bitmap.CompressFormat.PNG, 70, fos);
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+                return 2;
+            } finally {
+                IOUtil.closeQuietly(fos);
+            }
+            return 0;
+        }
+
+        @Override
+        protected void onPostExecute(Integer integer) {
+            super.onPostExecute(integer);
+            switch (integer) {
+                case 0:
+                    context.setResult(RESULT_OK);
+                    context.finish();
+                    break;
+                case 1:
+                    Toast.makeText(App.getInstance(), "图片裁剪失败", Toast.LENGTH_SHORT).show();
+                    break;
+                case 2:
+                    Toast.makeText(App.getInstance(), "输出路径无效", Toast.LENGTH_SHORT).show();
+                    break;
+            }
+        }
+    }
+
+}
