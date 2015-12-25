@@ -12,10 +12,14 @@ import android.graphics.Rect;
  * Created by gaolf on 15/12/24.
  *
  * Thanks to
- * Android裁剪图片为圆形图片
  * http://blog.csdn.net/kkmike999/article/details/16359713
  */
 public abstract class ImageUtil {
+    /**
+     * 将一个bitmap裁成圆形 - 如果bitmap不是正方形的，则只有中心部分会被裁出
+     * @param bitmap
+     * @return
+     */
     public static Bitmap toRoundBitmap(Bitmap bitmap) {
         int width = bitmap.getWidth();
         int height = bitmap.getHeight();
@@ -50,10 +54,6 @@ public abstract class ImageUtil {
 
         Canvas canvas = new Canvas(output);
 
-//        Paint transPainter = new Paint();
-//        transPainter.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
-//        canvas.drawRect(0, 0, output.getWidth(), output.getHeight(), transPainter);
-
         final Paint paint = new Paint();
         final Rect src = new Rect((int) left, (int) top, (int) right, (int) bottom);
         final Rect dst = new Rect((int) dst_left, (int) dst_top, (int) dst_right, (int) dst_bottom);
@@ -61,8 +61,6 @@ public abstract class ImageUtil {
         paint.setAntiAlias(true);// 设置画笔无锯齿
         paint.setColor(Color.parseColor("#ffffffff"));
 
-        // 以下有两种方法画圆,drawRoundedRect和drawCircle
-        // canvas.drawRoundRect(rectF, roundPx, roundPx, paint);// 画圆角矩形，第一个参数为图形显示区域，第二个参数和第三个参数分别是水平圆角半径和垂直圆角半径。
         canvas.drawCircle(roundPx, roundPx, roundPx, paint);
 
         paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));// 设置两张图片相交时的模式,参考http://trylovecatch.iteye.com/blog/1189452

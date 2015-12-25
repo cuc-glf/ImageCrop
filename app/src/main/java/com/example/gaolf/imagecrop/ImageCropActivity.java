@@ -104,7 +104,8 @@ public class ImageCropActivity extends Activity {
         findViewById(R.id.crop_image_ok).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Toast.makeText(ImageCropActivity.this, "crop!", Toast.LENGTH_SHORT).show();
+                findViewById(R.id.crop_image_cropping_layer).setVisibility(View.VISIBLE);
+
                 RectF imgRect = cropImageView.getCurrentRect();
                 CropTask task = new CropTask(
                         ImageCropActivity.this, inPath, outPath, isCircle, cropRect, imgRect,

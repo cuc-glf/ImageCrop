@@ -63,10 +63,6 @@ public class CropImageView extends ImageView {
         maskPaint.setColor(Color.argb(255 / 2, 0, 0, 0));
         maskPaint.setStyle(Paint.Style.FILL);
 
-        if (BuildConfig.DEBUG) {
-            Rect edge = new Rect(200, 200, 1000, 1000);
-            setEdge(edge);
-        }
     }
 
     public void startCrop() {

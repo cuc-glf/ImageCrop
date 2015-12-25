@@ -33,4 +33,28 @@
 
     </LinearLayout>
 
+    <RelativeLayout
+        android:id="@+id/crop_image_cropping_layer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:background="#aa292929"
+        android:visibility="gone">
+
+        <ProgressBar
+            android:id="@+id/crop_image_progress_bar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            style="?android:attr/progressBarStyleLarge"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/crop_image_progress_bar"
+            android:textSize="20sp"
+            android:textColor="#000000"
+            android:text="please wait..."/>
+
+    </RelativeLayout>
+
 </RelativeLayout>
