@@ -9,6 +9,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.view.View;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.ImageView;
 import android.widget.Toast;
 
@@ -26,12 +28,15 @@ public class EntryActivity extends Activity {
     private static final int REQUEST_CODE_TAKE_PICTURE = 2;
     private static final int REQUEST_CODE_CROP = 3;
 
+    private boolean cropCircle = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_entry);
         findViewById(R.id.entry_select_image).setOnClickListener(selectImageClick);
         findViewById(R.id.entry_take_picture).setOnClickListener(takePictureClick);
+        ((CheckBox)findViewById(R.id.entry_crop_circle)).setOnCheckedChangeListener(cropCircleCheckListener);
     }
 
     @Override
@@ -65,7 +70,7 @@ public class EntryActivity extends Activity {
 
                     if (writeSucceed) {
                         Intent intent = ImageCropActivity.createIntent(
-                                EntryActivity.this, FileUtil.IMG_CACHE1, FileUtil.IMG_CACHE2, "200, 200, 1000, 1000");
+                                EntryActivity.this, FileUtil.IMG_CACHE1, FileUtil.IMG_CACHE2, "200, 200, 1000, 1000", cropCircle);
                         startActivityForResult(intent, REQUEST_CODE_CROP);
                     } else {
                         Toast.makeText(EntryActivity.this, "无法打开图片文件，您的sd卡是否已满？", Toast.LENGTH_SHORT).show();
@@ -78,7 +83,8 @@ public class EntryActivity extends Activity {
 
             case REQUEST_CODE_TAKE_PICTURE:
                 if (resultCode == RESULT_OK) {
-                    Intent intent = ImageCropActivity.createIntent(EntryActivity.this, FileUtil.PUBLIC_CACHE, FileUtil.IMG_CACHE2, "200, 200, 1000, 1000");
+                    Intent intent = ImageCropActivity.createIntent(
+                            EntryActivity.this, FileUtil.PUBLIC_CACHE, FileUtil.IMG_CACHE2, "200, 200, 1000, 1000", cropCircle);
                     startActivityForResult(intent, REQUEST_CODE_CROP);
                 } else {
                     // do nothing
@@ -120,6 +126,13 @@ public class EntryActivity extends Activity {
             intent.putExtra("crop", false);
             intent.putExtra("return-data", true);
             startActivityForResult(intent, REQUEST_CODE_SELECT_IMAGE);
+        }
+    };
+
+    private CompoundButton.OnCheckedChangeListener cropCircleCheckListener = new CompoundButton.OnCheckedChangeListener() {
+        @Override
+        public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+            cropCircle = isChecked;
         }
     };
 

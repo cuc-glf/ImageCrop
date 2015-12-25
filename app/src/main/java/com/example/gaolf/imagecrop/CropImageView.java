@@ -9,8 +9,9 @@ import android.graphics.Path;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Region;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
@@ -27,19 +28,22 @@ public class CropImageView extends ImageView {
         TOUCH_STATE_IDLE,               // 没有拖动或缩放
         TOUCH_STATE_DRAG,               // 拖动
         TOUCH_STATE_ZOOM,               // 缩放
-
     }
 
     private static final float MAX_ZOOM_RELATIVE_TO_INTRINSIC = 3;
 
-    private Matrix matrix; // image's controlling matrix
+    private Matrix matrix;                                                          // image's controlling matrix
     private MatrixHelper matrixHelper;
-    private TouchState touchState = TouchState.TOUCH_STATE_IDLE;                  // 当前的交互
+    private TouchState touchState = TouchState.TOUCH_STATE_IDLE;                    // 当前的交互
 
-    private Rect edgeRect;              // 裁剪区域
+    private Rect edgeRect;                                                          // 裁剪区域
+    private boolean cropCircle = true;                                              // 是否裁成圆形
+    private boolean blockTouchEvent = false;                                        // 禁用交互 - 当前正在自动缩放
 
     private ScaleGestureDetector scaleGestureDetector;                              // 多指缩放
     private GestureDetector gestureDetector;                                        // 单指手势
+
+    private Handler mainHandler = new Handler(Looper.getMainLooper());
 
     public CropImageView(Context context) {
         super(context);
@@ -92,6 +96,9 @@ public class CropImageView extends ImageView {
         });
     }
 
+    public void setCropCircle(boolean cropCircle) {
+        this.cropCircle = cropCircle;
+    }
 
     public void setEdge(Rect edgeRect) {
         this.edgeRect = new Rect(edgeRect);
@@ -112,11 +119,6 @@ public class CropImageView extends ImageView {
         return matrixHelper.getIntrinsicHeight();
     }
 
-    private void afterScale() {
-        onScale();
-        onTranslate();
-    }
-
     private void onScale() {
         matrixHelper.update(matrix);
         if (matrixHelper.getWidth() < edgeRect.width()) {
@@ -127,6 +129,7 @@ public class CropImageView extends ImageView {
         }
 
         if (scaleX != 1 || scaleY != 1) {
+//            Log.e("gaolf", "scale fixed, scaleX: " + scaleX + ", scaleY: " + scaleY);
             scale = Math.max(scaleX, scaleY);
             matrix.postScale(scale, scale, getWidth() / 2, getHeight() / 2);
             onTranslate();
@@ -138,7 +141,7 @@ public class CropImageView extends ImageView {
         invalidate();
     }
 
-    private void afterTranslate() {
+    private void fixConstraints() {
         // check translate first..
         onScale();
         onTranslate();
@@ -157,6 +160,7 @@ public class CropImageView extends ImageView {
             dy = edgeRect.bottom - matrixHelper.getBottom();
         }
         if (dx != 0 || dy != 0) {
+//            Log.e("gaolf", "translate fixed, transX: " + dx + ", transY: " + dy);
             matrix.postTranslate(dx, dy);
             matrixHelper.update(matrix);
             setImageMatrix(matrix);
@@ -170,18 +174,23 @@ public class CropImageView extends ImageView {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
-        try {
-            // 截个圆出来
-            canvas.save();
-            circlePath.reset();
-            circlePath.addCircle((edgeRect.right + edgeRect.left) / 2, (edgeRect.bottom + edgeRect.top) / 2, (edgeRect.bottom - edgeRect.top) / 2, Path.Direction.CW);
-            canvas.clipPath(circlePath, Region.Op.XOR);
-            canvas.drawRect(0, 0, getWidth(), getHeight(), maskPaint);
-            canvas.restore();
-        } catch (Exception e) {
-            e.printStackTrace();
-            // 画成方的吧
-            canvas.restore();
+        if (cropCircle) {
+            try {
+                // 截个圆出来
+                canvas.save();
+                circlePath.reset();
+                circlePath.addCircle((edgeRect.right + edgeRect.left) / 2, (edgeRect.bottom + edgeRect.top) / 2, (edgeRect.bottom - edgeRect.top) / 2, Path.Direction.CW);
+                canvas.clipPath(circlePath, Region.Op.XOR);
+                canvas.drawRect(0, 0, getWidth(), getHeight(), maskPaint);
+                canvas.restore();
+            } catch (Exception e) {
+                e.printStackTrace();
+                canvas.restore();
+                cropCircle = false;
+            }
+        }
+
+        if (!cropCircle) {
             canvas.drawRect(0, 0, getWidth(), edgeRect.top, maskPaint);                                         //top
             canvas.drawRect(0, edgeRect.bottom, getWidth(), getHeight(), maskPaint);                            //bottom
             canvas.drawRect(0, edgeRect.top, edgeRect.left, edgeRect.bottom, maskPaint);                        //left
@@ -192,9 +201,10 @@ public class CropImageView extends ImageView {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_POINTER_DOWN:
-                Log.e("gaolf", "action pointer down: " + event.getActionIndex());
+//                Log.e("gaolf", "action pointer down: " + event.getActionIndex());
                 if (event.getActionIndex() == 1) {
                     touchState = TouchState.TOUCH_STATE_ZOOM;
                 } else {
@@ -202,7 +212,7 @@ public class CropImageView extends ImageView {
                 }
                 break;
             case MotionEvent.ACTION_POINTER_UP:
-                Log.e("gaolf", "action pointer up: " + event.getActionIndex());
+//                Log.e("gaolf", "action pointer up: " + event.getActionIndex());
                 if (event.getActionIndex() == 2) {
                     touchState = TouchState.TOUCH_STATE_ZOOM;
                 } else if (event.getActionIndex() == 1){
@@ -212,20 +222,19 @@ public class CropImageView extends ImageView {
                 }
                 break;
             case MotionEvent.ACTION_DOWN:
-                Log.e("gaolf", "action down: " + event.getActionIndex());
+//                Log.e("gaolf", "action down: " + event.getActionIndex());
                 touchState = TouchState.TOUCH_STATE_DRAG;
                 break;
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
-                Log.e("gaolf", "action up/cancel: " + event.getActionIndex());
+//                Log.e("gaolf", "action up/cancel: " + event.getActionIndex());
                 touchState = TouchState.TOUCH_STATE_IDLE;
                 break;
         }
 
-        Log.e("gaolf", "touchState: " + touchState);
-
         switch (touchState) {
             case TOUCH_STATE_DRAG:
+            case TOUCH_STATE_IDLE:
                 gestureDetector.onTouchEvent(event);
                 break;
             case TOUCH_STATE_ZOOM:
@@ -239,6 +248,9 @@ public class CropImageView extends ImageView {
     private ScaleGestureDetector.OnScaleGestureListener onScaleGestureListener = new ScaleGestureDetector.SimpleOnScaleGestureListener() {
         @Override
         public boolean onScale(ScaleGestureDetector detector) {
+            if (blockTouchEvent) {
+                return true;
+            }
             scaleFactor = detector.getScaleFactor();
             matrix.getValues(matrixValues);
             if (matrixValues[Matrix.MSCALE_X] * scaleFactor > MAX_ZOOM_RELATIVE_TO_INTRINSIC) {
@@ -249,48 +261,106 @@ public class CropImageView extends ImageView {
                     // do nothing
                     scaleFactor = 1;
                 } else {
+                    // 设置到最大缩放倍数
                     scaleFactor = MAX_ZOOM_RELATIVE_TO_INTRINSIC / matrixValues[Matrix.MSCALE_X];
                 }
             }
             matrix.postScale(scaleFactor, scaleFactor, edgeRect.left + edgeRect.width() / 2, edgeRect.top + edgeRect.height() / 2);
 
-            afterScale();
+            fixConstraints();
             return true;
-        }
-
-        @Override
-        public boolean onScaleBegin(ScaleGestureDetector detector) {
-
-            return true;
-        }
-
-        @Override
-        public void onScaleEnd(ScaleGestureDetector detector) {
-//            onScale();
         }
     };
 
     private GestureDetector.OnGestureListener onGestureListener = new GestureDetector.SimpleOnGestureListener() {
 
         @Override
-        public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-
-            return true;
-        }
-
-        @Override
         public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
+            if (blockTouchEvent) {
+                return true;
+            }
             matrix.postTranslate(-distanceX, -distanceY);
-            afterTranslate();
+            fixConstraints();
             return true;
         }
 
         @Override
         public boolean onDoubleTap(MotionEvent e) {
-
+            if (blockTouchEvent) {
+                return true;
+            }
+//            Log.e("gaolf", "raw: (" + matrixHelper.getIntrinsicWidth() + ", " + matrixHelper.getIntrinsicHeight() + ")");
+            matrix.getValues(matrixValues);
+            float currentScale = matrixValues[Matrix.MSCALE_X];
+            if (currentScale >= MAX_ZOOM_RELATIVE_TO_INTRINSIC - 0.01) {
+                // zoom out
+                float targetScale = Math.min(edgeRect.width() / matrixHelper.getIntrinsicWidth(), edgeRect.height() / matrixHelper.getIntrinsicHeight());
+                mainHandler.post(new AutoScaleRunnable(currentScale, targetScale, matrixHelper.getWidth(), matrixHelper.getHeight()));
+            } else {
+                // zoom in
+                float targetScale = currentScale * 2;
+                if (targetScale + 0.5 > MAX_ZOOM_RELATIVE_TO_INTRINSIC) {
+                    // 缩放后，缩放比过大
+                    if (edgeRect.width() / matrixHelper.getIntrinsicWidth() > MAX_ZOOM_RELATIVE_TO_INTRINSIC
+                            || edgeRect.height() / matrixHelper.getIntrinsicHeight() > MAX_ZOOM_RELATIVE_TO_INTRINSIC) {
+                        // 原图就比裁剪框小这么多倍..完全没有意义，不让用户缩放
+                        // do nothing
+                        targetScale = 1;
+                    } else {
+                        targetScale = MAX_ZOOM_RELATIVE_TO_INTRINSIC;
+                    }
+                }
+                mainHandler.post(new AutoScaleRunnable(currentScale, targetScale, matrixHelper.getWidth(), matrixHelper.getHeight()));
+                matrix.postScale(scaleFactor, scaleFactor, edgeRect.left + edgeRect.width() / 2, edgeRect.top + edgeRect.height() / 2);
+            }
             return true;
         }
     };
+
+    private class AutoScaleRunnable implements Runnable {
+        private static final int SCALE_ANIMATION_FRAME_COUNT = 20;
+        private float targetScale;
+        private float fromScale;
+        private float fromWidth;
+        private float fromHeight;
+        private int currentFrame;
+
+        public AutoScaleRunnable(float fromScale, float targetScale, float fromWidth, float fromHeight) {
+            this(fromScale, targetScale, 0, fromWidth, fromHeight);
+        }
+
+        public AutoScaleRunnable(float fromScale, float targetScale, int currentFrame, float fromWidth, float fromHeight) {
+            this.fromScale = fromScale;
+            this.targetScale = targetScale;
+            this.currentFrame = currentFrame;
+            this.fromWidth = fromWidth;
+            this.fromHeight = fromHeight;
+        }
+
+        @Override
+        public void run() {
+            blockTouchEvent = true;
+            currentFrame++;
+            float scaleStep = (targetScale - fromScale) / SCALE_ANIMATION_FRAME_COUNT;
+            float currentScale = fromScale + scaleStep * currentFrame;
+            matrix.getValues(matrixValues);
+            float prevScale = matrixValues[Matrix.MSCALE_X];
+            matrix.postScale(currentScale / prevScale, currentScale / prevScale, edgeRect.left + edgeRect.width() / 2, edgeRect.top + edgeRect.height() / 2);
+            fixConstraints();
+
+//            matrixHelper.update(matrix);
+//            setImageMatrix(matrix);
+//            invalidate();
+//
+//            matrix.getValues(matrixValues);
+//            Log.e("gaolf", "matrix transX: " + matrixValues[Matrix.MTRANS_X] + ", transY: " + matrixValues[Matrix.MTRANS_Y]);
+            if (currentFrame < SCALE_ANIMATION_FRAME_COUNT) {
+                mainHandler.post(new AutoScaleRunnable(fromScale, targetScale, currentFrame, fromWidth, fromHeight));
+            } else {
+                blockTouchEvent = false;
+            }
+        }
+    }
 
     private float dx = 0, dy = 0;
     private float scale = 1, scaleX = 1, scaleY = 1;

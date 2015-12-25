@@ -25,25 +25,28 @@ public class ImageCropActivity extends Activity {
     private static final String REQUEST_IMAGE_PATH = "REQUEST_IMAGE_PATH";
     private static final String REQUEST_TARGET_PATH = "REQUEST_TARGET_PATH";
     private static final String REQUEST_CROP_RECT = "REQUEST_CROP_RECT";
+    private static final String REQUEST_CROP_IN_CIRCLE = "REQUEST_CROP_IN_CIRCLE";
 
-    public static Intent createIntent(Activity from, String imageFilePath, String targetPath, String cropRect) {
+    public static Intent createIntent(Activity from, String imageFilePath, String targetPath, String cropRect, boolean cropInCircle) {
         Intent intent = new Intent(from, ImageCropActivity.class);
         intent.putExtra(REQUEST_IMAGE_PATH, imageFilePath);
         intent.putExtra(REQUEST_TARGET_PATH, targetPath);
         intent.putExtra(REQUEST_CROP_RECT, cropRect);
+        intent.putExtra(REQUEST_CROP_IN_CIRCLE, cropInCircle);
         return intent;
     }
 
-    public static Intent createIntent(Activity from, String imageFilePath, String targetPath) {
-        Intent intent = new Intent(from, ImageCropActivity.class);
-        intent.putExtra(REQUEST_IMAGE_PATH, imageFilePath);
-        intent.putExtra(REQUEST_TARGET_PATH, targetPath);
-        intent.putExtra(REQUEST_CROP_RECT, "200, 200, 1000, 1000");
-        return intent;
-    }
+//    public static Intent createIntent(Activity from, String imageFilePath, String targetPath) {
+//        Intent intent = new Intent(from, ImageCropActivity.class);
+//        intent.putExtra(REQUEST_IMAGE_PATH, imageFilePath);
+//        intent.putExtra(REQUEST_TARGET_PATH, targetPath);
+//        intent.putExtra(REQUEST_CROP_RECT, "200, 200, 1000, 1000");
+//        return intent;
+//    }
 
     private String inPath, outPath;
     private Rect cropRect;
+    private boolean isCircle;
 
     private CropImageView cropImageView;
 
@@ -54,6 +57,7 @@ public class ImageCropActivity extends Activity {
         if (getIntent() != null) {
             inPath = getIntent().getStringExtra(REQUEST_IMAGE_PATH);
             outPath = getIntent().getStringExtra(REQUEST_TARGET_PATH);
+            isCircle = getIntent().getBooleanExtra(REQUEST_CROP_IN_CIRCLE, true);
             String cropRectStr = getIntent().getStringExtra(REQUEST_CROP_RECT);
             if (cropRectStr.matches("\\s*\\d+\\s*,\\s*\\d+\\s*,\\s*\\d+\\s*,\\s*\\d+\\s*")) {
                 String[] cropRectStrArray = cropRectStr.split(",");
@@ -70,6 +74,7 @@ public class ImageCropActivity extends Activity {
 
         setContentView(R.layout.activity_image_crop);
         cropImageView = (CropImageView) findViewById(R.id.crop_image);
+        cropImageView.setCropCircle(isCircle);
 
         // 根据手机屏幕大小找出合适的inSampleSize
         BitmapFactory.Options options = new BitmapFactory.Options();
@@ -102,7 +107,7 @@ public class ImageCropActivity extends Activity {
                 Toast.makeText(ImageCropActivity.this, "crop!", Toast.LENGTH_SHORT).show();
                 RectF imgRect = cropImageView.getCurrentRect();
                 CropTask task = new CropTask(
-                        ImageCropActivity.this, inPath, outPath, cropRect, imgRect,
+                        ImageCropActivity.this, inPath, outPath, isCircle, cropRect, imgRect,
                         (int) cropImageView.getRawWidth(), (int) cropImageView.getRawHeight());
                 task.execute();
             }
@@ -116,11 +121,13 @@ public class ImageCropActivity extends Activity {
         private RectF imgRect;
         private int rawImgWidth;
         private int rawImgHeight;
+        private boolean cropCircle;
         private Activity context;
 
-        public CropTask(Activity context, String inPath, String outPath, Rect cropRect, RectF imgRect, int rawImgWidth, int rawImgHeight) {
+        public CropTask(Activity context, String inPath, String outPath, boolean cropCircle, Rect cropRect, RectF imgRect, int rawImgWidth, int rawImgHeight) {
             this.inPath = inPath;               // 要裁剪的原图路径
             this.outPath = outPath;             // 要输出的裁剪路径
+            this.cropCircle = cropCircle;       // 是否裁剪成圆形
             this.cropRect = cropRect;           // CropImageView指定的裁剪区域
             this.imgRect = imgRect;             // CropImageView中图片被移动、缩放后的区域
             this.rawImgWidth = rawImgWidth;     // CropImageView中图片原大小
@@ -171,12 +178,17 @@ public class ImageCropActivity extends Activity {
                 e.printStackTrace();
                 return 1;
             }
-            Bitmap roundBmp = ImageUtil.toRoundBitmap(bmp);
-            bmp.recycle();
+            Bitmap b;
+            if (cropCircle) {
+                b = ImageUtil.toRoundBitmap(bmp);
+                bmp.recycle();
+            } else {
+                b = bmp;
+            }
             FileOutputStream fos = null;
             try {
                 fos = new FileOutputStream(outPath);
-                roundBmp.compress(Bitmap.CompressFormat.PNG, 70, fos);
+                b.compress(Bitmap.CompressFormat.PNG, 70, fos);
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
                 return 2;

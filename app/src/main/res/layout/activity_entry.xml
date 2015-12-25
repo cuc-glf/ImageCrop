@@ -18,11 +18,17 @@
         android:layout_height="wrap_content"
         android:text="拍照"/>
 
+    <CheckBox
+        android:id="@+id/entry_crop_circle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="圆形裁剪(宽高需一致)"/>
+
     <ImageView
         android:id="@+id/entry_result_image"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="#ffffff"
         android:visibility="gone"/>
 
 </LinearLayout>
