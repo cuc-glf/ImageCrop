@@ -128,17 +128,16 @@ public class CropImageView extends ImageView {
 //            Log.e("gaolf", "scale fixed, scaleX: " + scaleX + ", scaleY: " + scaleY);
             scale = Math.max(scaleX, scaleY);
             matrix.postScale(scale, scale, getWidth() / 2, getHeight() / 2);
-            onTranslate();
             matrixHelper.update(matrix);
             scaleX = 1;
             scaleY = 1;
             scale = 1;
         }
+        setImageMatrix(matrix);
         invalidate();
     }
 
     private void fixConstraints() {
-        // check translate first..
         onScale();
         onTranslate();
     }
@@ -156,13 +155,12 @@ public class CropImageView extends ImageView {
             dy = edgeRect.bottom - matrixHelper.getBottom();
         }
         if (dx != 0 || dy != 0) {
-//            Log.e("gaolf", "translate fixed, transX: " + dx + ", transY: " + dy);
             matrix.postTranslate(dx, dy);
             matrixHelper.update(matrix);
-            setImageMatrix(matrix);
             dx = 0;
             dy = 0;
         }
+        setImageMatrix(matrix);
         invalidate();
     }
 

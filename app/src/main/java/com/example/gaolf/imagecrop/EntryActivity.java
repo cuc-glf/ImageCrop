@@ -8,6 +8,7 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.util.DisplayMetrics;
 import android.view.View;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
@@ -70,7 +71,7 @@ public class EntryActivity extends Activity {
 
                     if (writeSucceed) {
                         Intent intent = ImageCropActivity.createIntent(
-                                EntryActivity.this, FileUtil.IMG_CACHE1, FileUtil.IMG_CACHE2, "200, 200, 1000, 1000", cropCircle);
+                                EntryActivity.this, FileUtil.IMG_CACHE1, FileUtil.IMG_CACHE2, getCropAreaStr(), cropCircle);
                         startActivityForResult(intent, REQUEST_CODE_CROP);
                     } else {
                         Toast.makeText(EntryActivity.this, "无法打开图片文件，您的sd卡是否已满？", Toast.LENGTH_SHORT).show();
@@ -84,7 +85,7 @@ public class EntryActivity extends Activity {
             case REQUEST_CODE_TAKE_PICTURE:
                 if (resultCode == RESULT_OK) {
                     Intent intent = ImageCropActivity.createIntent(
-                            EntryActivity.this, FileUtil.PUBLIC_CACHE, FileUtil.IMG_CACHE2, "200, 200, 1000, 1000", cropCircle);
+                            EntryActivity.this, FileUtil.PUBLIC_CACHE, FileUtil.IMG_CACHE2, getCropAreaStr(), cropCircle);
                     startActivityForResult(intent, REQUEST_CODE_CROP);
                 } else {
                     // do nothing
@@ -103,6 +104,18 @@ public class EntryActivity extends Activity {
                 break;
         }
 
+    }
+
+    private String getCropAreaStr() {
+        DisplayMetrics dm = getResources().getDisplayMetrics();
+        int screenWidth = dm.widthPixels;
+        int screenHeight = dm.heightPixels;
+        int rectWidth = screenWidth / 2;
+        int left = screenWidth / 2 - rectWidth / 2;
+        int right = screenWidth / 2 + rectWidth / 2;
+        int top = screenHeight / 2 - rectWidth / 2;
+        int bottom = screenHeight / 2 + rectWidth / 2;
+        return left + ", " + top + ", " + right + ", " + bottom;
     }
 
     private View.OnClickListener takePictureClick = new View.OnClickListener() {
