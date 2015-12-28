@@ -23,6 +23,11 @@ import android.widget.ImageView;
  */
 public class CropImageView extends ImageView {
 
+    public enum CropScaleType {
+        CROP_SCALE_TYPE_NONE,                 // 按照图片原scaleType尺寸显示，
+        CROP_SCALE_TYPE_HORIZONTAL,           // 如果图片在缩放(最大放大倍数=MAX_ZOOM_RELATIVE_TO_INTRINSIC)后可以横向填满屏幕，则缩放图片并横向填满屏幕
+    }
+
     private enum TouchState {
         TOUCH_STATE_UNKNOWN,            // 两根手指以上 ---- 用户想干嘛？？
         TOUCH_STATE_IDLE,               // 没有拖动或缩放
@@ -37,6 +42,7 @@ public class CropImageView extends ImageView {
     private TouchState touchState = TouchState.TOUCH_STATE_IDLE;                    // 当前的交互
 
     private Rect edgeRect;                                                          // 裁剪区域
+    private CropScaleType cropScaleType;                                            // 非标准的scaleType，见CropScaleType
     private boolean cropCircle = true;                                              // 是否裁成圆形
     private boolean blockTouchEvent = false;                                        // 禁用交互 - 当前正在自动缩放
 
@@ -62,7 +68,7 @@ public class CropImageView extends ImageView {
         maskPaint = new Paint();
         maskPaint.setColor(Color.argb(255 / 2, 0, 0, 0));
         maskPaint.setStyle(Paint.Style.FILL);
-
+        cropScaleType = CropScaleType.CROP_SCALE_TYPE_HORIZONTAL;
     }
 
     public void startCrop() {
@@ -82,6 +88,26 @@ public class CropImageView extends ImageView {
                 setImageMatrix(matrix);
                 setScaleType(ScaleType.MATRIX);
                 matrixHelper.init(matrix, getDrawable().getIntrinsicWidth(), getDrawable().getIntrinsicHeight());
+                switch (cropScaleType) {
+                    case CROP_SCALE_TYPE_NONE:
+                        // do nothing
+                        break;
+                    case CROP_SCALE_TYPE_HORIZONTAL:
+                        if (getWidth() > matrixHelper.getWidth()) {
+//                            Log.e("gaolf", "screen width > show width, screen width: " + getWidth() + ", show width: " + matrixHelper);
+                            if (matrixHelper.getIntrinsicWidth() * MAX_ZOOM_RELATIVE_TO_INTRINSIC > getWidth()) {
+//                                Log.e("gaolf", "raw width * 3: " + matrixHelper.getIntrinsicWidth() * MAX_ZOOM_RELATIVE_TO_INTRINSIC);
+                                scale = getWidth() / matrixHelper.getIntrinsicWidth();
+                                matrix.getValues(matrixValues);
+                                float currScale = matrixValues[Matrix.MSCALE_X];
+                                matrix.postScale(scale / currScale, scale / currScale, edgeRect.left + edgeRect.width() / 2, edgeRect.top + edgeRect.height() / 2);
+                                matrixHelper.update(matrix);
+//                                Log.e("gaolf", "after scale, show width: " + matrixHelper.getWidth());
+                                scale = 1;
+                            }
+                        }
+                        break;
+                }
                 onScale();
                 onTranslate();
                 if (onMatrixObtainedRunnable != null) {
@@ -94,6 +120,10 @@ public class CropImageView extends ImageView {
 
     public void setCropCircle(boolean cropCircle) {
         this.cropCircle = cropCircle;
+    }
+
+    public void setCropScaleType(CropScaleType cropScaleType) {
+        this.cropScaleType = cropScaleType;
     }
 
     public void setEdge(Rect edgeRect) {
