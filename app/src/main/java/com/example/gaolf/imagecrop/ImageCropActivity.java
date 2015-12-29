@@ -36,19 +36,12 @@ public class ImageCropActivity extends Activity {
         return intent;
     }
 
-//    public static Intent createIntent(Activity from, String imageFilePath, String targetPath) {
-//        Intent intent = new Intent(from, ImageCropActivity.class);
-//        intent.putExtra(REQUEST_IMAGE_PATH, imageFilePath);
-//        intent.putExtra(REQUEST_TARGET_PATH, targetPath);
-//        intent.putExtra(REQUEST_CROP_RECT, "200, 200, 1000, 1000");
-//        return intent;
-//    }
-
     private String inPath, outPath;
     private Rect cropRect;
     private boolean isCircle;
 
     private CropImageView cropImageView;
+    private View loadingView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -101,10 +94,12 @@ public class ImageCropActivity extends Activity {
         cropImageView.setEdge(cropRect);
         cropImageView.startCrop();
 
+        loadingView = findViewById(R.id.crop_image_cropping_layer);
+
         findViewById(R.id.crop_image_ok).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                findViewById(R.id.crop_image_cropping_layer).setVisibility(View.VISIBLE);
+                loadingView.setVisibility(View.VISIBLE);
 
                 RectF imgRect = cropImageView.getCurrentRect();
                 CropTask task = new CropTask(
@@ -113,9 +108,19 @@ public class ImageCropActivity extends Activity {
                 task.execute();
             }
         });
+        findViewById(R.id.crop_image_cancel).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                onBackPressed();
+            }
+        });
     }
 
     private static class CropTask extends AsyncTask<Void, Void, Integer> {
+        private static final int SUCCESS = 0;
+        private static final int FAIL_CROP = 1;
+        private static final int FAIL_OUT_PATH = 2;
+
         private String inPath;
         private String outPath;
         private Rect cropRect;
@@ -177,7 +182,7 @@ public class ImageCropActivity extends Activity {
                 }
             } catch (Exception e){
                 e.printStackTrace();
-                return 1;
+                return FAIL_CROP;
             }
             Bitmap b;
             if (cropCircle) {
@@ -192,25 +197,25 @@ public class ImageCropActivity extends Activity {
                 b.compress(Bitmap.CompressFormat.PNG, 70, fos);
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
-                return 2;
+                return FAIL_OUT_PATH;
             } finally {
                 IOUtil.closeQuietly(fos);
             }
-            return 0;
+            return SUCCESS;
         }
 
         @Override
         protected void onPostExecute(Integer integer) {
             super.onPostExecute(integer);
             switch (integer) {
-                case 0:
+                case SUCCESS:
                     context.setResult(RESULT_OK);
                     context.finish();
                     break;
-                case 1:
+                case FAIL_CROP:
                     Toast.makeText(App.getInstance(), "图片裁剪失败", Toast.LENGTH_SHORT).show();
                     break;
-                case 2:
+                case FAIL_OUT_PATH:
                     Toast.makeText(App.getInstance(), "输出路径无效", Toast.LENGTH_SHORT).show();
                     break;
             }
