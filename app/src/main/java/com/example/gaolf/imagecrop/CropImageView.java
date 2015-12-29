@@ -17,9 +17,14 @@ import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.ViewTreeObserver;
 import android.widget.ImageView;
+import android.widget.Scroller;
 
 /**
  * Created by gaolf on 15/12/21.
+ * 在同步地设置了图片后，需要调用startCrop初始化，此时会根据图片大小做初始化工作；如果指定cropScaleType为NONE，
+ * 则使用默认的scaleType对图片做初始缩放，如果发现默认的scaleType缩放图片后，图片比裁剪框大小还要小，就将图片放大到和裁剪框一样大。
+ *
+ * 使用方式参考ImageCropActivity
  */
 public class CropImageView extends ImageView {
 
@@ -48,6 +53,7 @@ public class CropImageView extends ImageView {
 
     private ScaleGestureDetector scaleGestureDetector;                              // 多指缩放
     private GestureDetector gestureDetector;                                        // 单指手势
+    private Scroller flingScroller;                                                 // 处理fling时滑动的scroller
 
     private Handler mainHandler = new Handler(Looper.getMainLooper());
 
@@ -65,6 +71,7 @@ public class CropImageView extends ImageView {
         matrixHelper = new MatrixHelper();
         scaleGestureDetector = new ScaleGestureDetector(getContext(), onScaleGestureListener);
         gestureDetector = new GestureDetector(getContext(), onGestureListener);
+        flingScroller = new Scroller(getContext());
         maskPaint = new Paint();
         maskPaint.setColor(Color.argb(255 / 2, 0, 0, 0));
         maskPaint.setStyle(Paint.Style.FILL);
@@ -195,6 +202,16 @@ public class CropImageView extends ImageView {
     }
 
     @Override
+    public void computeScroll() {
+        if (flingScroller.computeScrollOffset()) {
+            matrix.postTranslate(flingScroller.getCurrX() - matrixHelper.getLeft(), flingScroller.getCurrY() - matrixHelper.getTop());
+            matrixHelper.update(matrix);
+//            Log.e("gaolf", "scroll, left: " + matrixHelper.getLeft() + ", right: " + matrixHelper.getRight());
+            onTranslate();
+        }
+    }
+
+    @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
@@ -226,6 +243,11 @@ public class CropImageView extends ImageView {
     @Override
     public boolean onTouchEvent(MotionEvent event) {
 
+        if (matrix == null) {
+            // not initialized, don't handle touch event.
+            return false;
+        }
+
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_POINTER_DOWN:
 //                Log.e("gaolf", "action pointer down: " + event.getActionIndex());
@@ -246,6 +268,7 @@ public class CropImageView extends ImageView {
                 }
                 break;
             case MotionEvent.ACTION_DOWN:
+                flingScroller.abortAnimation();
 //                Log.e("gaolf", "action down: " + event.getActionIndex());
                 touchState = TouchState.TOUCH_STATE_DRAG;
                 break;
@@ -309,6 +332,17 @@ public class CropImageView extends ImageView {
         }
 
         @Override
+        public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+            matrix.getValues(matrixValues);
+//            Log.e("gaolf", "onFling, transX: " + (int) matrixValues[Matrix.MTRANS_X] + ", transY: " + (int)matrixValues[Matrix.MTRANS_Y] +
+//                ", velocityX: " + velocityX + ", velocityY: " + velocityY);
+            flingScroller.fling((int) matrixValues[Matrix.MTRANS_X], (int)matrixValues[Matrix.MTRANS_Y], (int) velocityX, (int) velocityY,
+                    Integer.MIN_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MAX_VALUE);
+            invalidate();
+            return true;
+        }
+
+        @Override
         public boolean onDoubleTap(MotionEvent e) {
             if (blockTouchEvent) {
                 return true;
@@ -318,7 +352,10 @@ public class CropImageView extends ImageView {
             float currentScale = matrixValues[Matrix.MSCALE_X];
             if (currentScale >= MAX_ZOOM_RELATIVE_TO_INTRINSIC - 0.01) {
                 // zoom out
-                float targetScale = Math.min(edgeRect.width() / matrixHelper.getIntrinsicWidth(), edgeRect.height() / matrixHelper.getIntrinsicHeight());
+                float targetScale = Math.max(edgeRect.width() / matrixHelper.getIntrinsicWidth(), edgeRect.height() / matrixHelper.getIntrinsicHeight());
+//                Log.e("gaolf", "zoom out now, scaleX: " + edgeRect.width() / matrixHelper.getIntrinsicWidth()
+//                        + ", scaleY: " + edgeRect.height() / matrixHelper.getIntrinsicHeight());
+//                Log.e("gaolf", "targetScale: " + targetScale);
                 mainHandler.post(new AutoScaleRunnable(currentScale, targetScale, matrixHelper.getWidth(), matrixHelper.getHeight()));
             } else {
                 // zoom in
