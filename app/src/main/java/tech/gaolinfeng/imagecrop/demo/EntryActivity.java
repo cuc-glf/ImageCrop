@@ -1,4 +1,4 @@
-package tech.gaolinfeng.imagecrop;
+package tech.gaolinfeng.imagecrop.demo;
 
 import android.app.Activity;
 import android.content.ContentResolver;
@@ -20,8 +20,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import tech.gaolinfeng.imagecroblib.IOUtil;
-import tech.gaolinfeng.imagecroblib.ImageCropActivity;
+import tech.gaolinfeng.imagecrop.IOUtil;
+import tech.gaolinfeng.imagecrop.ImageCropActivity;
 
 /**
  * Created by gaolf on 15/12/24.

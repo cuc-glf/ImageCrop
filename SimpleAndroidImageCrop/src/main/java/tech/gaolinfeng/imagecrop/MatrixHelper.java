@@ -1,4 +1,4 @@
-package tech.gaolinfeng.imagecroblib;
+package tech.gaolinfeng.imagecrop;
 
 import android.graphics.Matrix;
 import android.graphics.RectF;

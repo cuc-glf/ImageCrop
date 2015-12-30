@@ -1,4 +1,4 @@
-package tech.gaolinfeng.imagecroblib;
+package tech.gaolinfeng.imagecrop;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -13,8 +13,6 @@ import android.os.Bundle;
 import android.util.DisplayMetrics;
 import android.view.View;
 import android.widget.Toast;
-
-import com.example.imagecroplib.R;
 
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -44,6 +42,7 @@ public class ImageCropActivity extends Activity {
 
     private CropImageView cropImageView;
     private View loadingView;
+    private int inSampleSize;                       // 读取时，如果图片过大，会被缩小后读取，因此裁剪时需要补上该值
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,7 +87,7 @@ public class ImageCropActivity extends Activity {
         while (screenHeight * inSampleSizeHeight * 2 < imgHeight) {
             inSampleSizeHeight *= 2;
         }
-        int inSampleSize = Math.max(inSampleSizeWidth, inSampleSizeHeight);
+        inSampleSize = Math.max(inSampleSizeWidth, inSampleSizeHeight);
         options.inJustDecodeBounds = false;
         options.inSampleSize = inSampleSize;
         Bitmap bitmap = BitmapFactory.decodeFile(inPath, options);
@@ -106,7 +105,7 @@ public class ImageCropActivity extends Activity {
                 RectF imgRect = cropImageView.getCurrentRect();
                 CropTask task = new CropTask(
                         ImageCropActivity.this, inPath, outPath, isCircle, cropRect, imgRect,
-                        (int) cropImageView.getRawWidth(), (int) cropImageView.getRawHeight());
+                        (int) cropImageView.getRawWidth(), (int) cropImageView.getRawHeight(), inSampleSize);
                 task.execute();
             }
         });
@@ -129,10 +128,11 @@ public class ImageCropActivity extends Activity {
         private RectF imgRect;
         private int rawImgWidth;
         private int rawImgHeight;
+        private int rawInSampleSize;
         private boolean cropCircle;
         private Activity context;
 
-        public CropTask(Activity context, String inPath, String outPath, boolean cropCircle, Rect cropRect, RectF imgRect, int rawImgWidth, int rawImgHeight) {
+        public CropTask(Activity context, String inPath, String outPath, boolean cropCircle, Rect cropRect, RectF imgRect, int rawImgWidth, int rawImgHeight, int rawInSampleSize) {
             this.inPath = inPath;               // 要裁剪的原图路径
             this.outPath = outPath;             // 要输出的裁剪路径
             this.cropCircle = cropCircle;       // 是否裁剪成圆形
@@ -140,6 +140,7 @@ public class ImageCropActivity extends Activity {
             this.imgRect = imgRect;             // CropImageView中图片被移动、缩放后的区域
             this.rawImgWidth = rawImgWidth;     // CropImageView中图片原大小
             this.rawImgHeight = rawImgHeight;   // CropImageView中图片原大小
+            this.rawInSampleSize = rawInSampleSize; // 图片文件如果过大，在解码时就会指定一个inSampleSize解出一个较小的bitmap，避免爆内存；在裁剪时，计算裁剪区域在原图中的区域也需要考虑这个inSampleSize
             this.context = context;
         }
 
@@ -148,10 +149,10 @@ public class ImageCropActivity extends Activity {
 
             // 计算这个rect在原图中的区域
             Rect mappedCropRect = new Rect(
-                    (int) ((cropRect.left - imgRect.left) * rawImgWidth / imgRect.width()),
-                    (int) ((cropRect.top - imgRect.top) * rawImgHeight / imgRect.height()),
-                    (int) ((cropRect.right - imgRect.left) * rawImgWidth / imgRect.width()),
-                    (int) ((cropRect.bottom - imgRect.top) * rawImgHeight / imgRect.height())
+                    (int) ((cropRect.left - imgRect.left) * rawImgWidth * rawInSampleSize / imgRect.width()),
+                    (int) ((cropRect.top - imgRect.top) * rawImgHeight * rawInSampleSize / imgRect.height()),
+                    (int) ((cropRect.right - imgRect.left) * rawImgWidth * rawInSampleSize / imgRect.width()),
+                    (int) ((cropRect.bottom - imgRect.top) * rawImgHeight * rawInSampleSize / imgRect.height())
             );
 
             // 1, 检查这个rect内的像素数

@@ -1,13 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="tech.gaolinfeng.imagecrop">
+    package="tech.gaolinfeng.imagecrop.demo">
 
     <application
-        android:name="tech.gaolinfeng.imagecrop.App"
+        android:name=".App"
         android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"
         android:theme="@style/AppTheme">
 
-        <activity android:name="tech.gaolinfeng.imagecrop.EntryActivity"
+        <activity android:name=".EntryActivity"
             android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
