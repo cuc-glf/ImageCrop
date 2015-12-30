@@ -1,4 +1,4 @@
-package com.example.gaolf.imagecrop;
+package tech.gaolinfeng.imagecrop;
 
 import android.app.Activity;
 import android.content.ContentResolver;
