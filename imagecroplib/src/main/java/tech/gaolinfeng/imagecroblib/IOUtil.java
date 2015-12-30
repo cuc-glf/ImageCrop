@@ -1,4 +1,4 @@
-package tech.gaolinfeng.imagecrop;
+package tech.gaolinfeng.imagecroblib;
 
 import java.io.Closeable;
 import java.io.IOException;

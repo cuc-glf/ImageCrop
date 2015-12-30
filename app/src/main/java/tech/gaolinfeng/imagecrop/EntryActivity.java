@@ -20,6 +20,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
+import tech.gaolinfeng.imagecroblib.IOUtil;
+import tech.gaolinfeng.imagecroblib.ImageCropActivity;
+
 /**
  * Created by gaolf on 15/12/24.
  */

@@ -1,4 +1,4 @@
-package tech.gaolinfeng.imagecrop;
+package tech.gaolinfeng.imagecroblib;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -13,6 +13,8 @@ import android.os.Bundle;
 import android.util.DisplayMetrics;
 import android.view.View;
 import android.widget.Toast;
+
+import com.example.imagecroplib.R;
 
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -213,10 +215,10 @@ public class ImageCropActivity extends Activity {
                     context.finish();
                     break;
                 case FAIL_CROP:
-                    Toast.makeText(App.getInstance(), "图片裁剪失败", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, "图片裁剪失败", Toast.LENGTH_SHORT).show();
                     break;
                 case FAIL_OUT_PATH:
-                    Toast.makeText(App.getInstance(), "输出路径无效", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, "输出路径无效", Toast.LENGTH_SHORT).show();
                     break;
             }
         }

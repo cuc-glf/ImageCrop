@@ -1,4 +1,4 @@
-package tech.gaolinfeng.imagecrop;
+package tech.gaolinfeng.imagecroblib;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
