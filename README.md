@@ -8,6 +8,9 @@ ImageCrop是一个非常简单的图片裁剪工具，一共只有不超过1000�
 
 裁剪时，直接读取原图进行裁剪，保证图片清晰。因此，裁出的图片总会比裁剪框更大 － 或是相等。
 
+##for gradle:
+    compile 'tech.gaolinfeng:SimpleAndroidImageCrop:0.1.1'
+
 ##usage:
 要调起图片裁剪，首先传入基本的参数，构造一个intent，并启动裁剪Activity：
 
