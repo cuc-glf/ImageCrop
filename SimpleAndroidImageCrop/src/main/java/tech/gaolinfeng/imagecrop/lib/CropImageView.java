@@ -333,6 +333,11 @@ public class CropImageView extends ImageView {
 
         @Override
         public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+            // on my nexus6p, onFling seems to be too sensitive..
+//            Log.e("gaolf", "onFling, velocityX: " + velocityX + ", velocityY: " + velocityY);
+            if (Math.abs(velocityX * velocityX + velocityY * velocityY) < 1000 * 1000 * getResources().getDisplayMetrics().density) {
+                return true;
+            }
             matrix.getValues(matrixValues);
 //            Log.e("gaolf", "onFling, transX: " + (int) matrixValues[Matrix.MTRANS_X] + ", transY: " + (int)matrixValues[Matrix.MTRANS_Y] +
 //                ", velocityX: " + velocityX + ", velocityY: " + velocityY);
