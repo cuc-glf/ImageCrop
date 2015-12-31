@@ -20,8 +20,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import tech.gaolinfeng.imagecrop.IOUtil;
-import tech.gaolinfeng.imagecrop.ImageCropActivity;
+import tech.gaolinfeng.imagecrop.lib.IOUtil;
+import tech.gaolinfeng.imagecrop.lib.ImageCropActivity;
 
 /**
  * Created by gaolf on 15/12/24.
