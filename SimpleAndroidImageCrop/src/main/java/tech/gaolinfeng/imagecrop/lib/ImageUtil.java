@@ -17,8 +17,6 @@ import android.graphics.Rect;
 public abstract class ImageUtil {
     /**
      * 将一个bitmap裁成圆形 - 如果bitmap不是正方形的，则只有中心部分会被裁出
-     * @param bitmap
-     * @return
      */
     public static Bitmap toRoundBitmap(Bitmap bitmap) {
         int width = bitmap.getWidth();
